@@ -30,10 +30,13 @@ public class GamePanel extends JComponent implements MouseMotionListener, MouseL
 	private Timer timer;
 	private int period = 50;
 	
+	private boolean drawGrid = true;
+	
 	public GamePanel(Game game) {
 		this.game = game;
 		setPreferredSize(new Dimension(GameStatic.CELL_WIDTH * GameStatic.WIDTH + GameStatic.FRAME_BORDER*2, GameStatic.CELL_HEIGHT * GameStatic.HEIGHT+GameStatic.FRAME_BORDER*2));
 		addMouseMotionListener(this);
+		addMouseListener(this);
 		addMouseWheelListener(this);
 		
 		startTimer();
@@ -51,7 +54,7 @@ public class GamePanel extends JComponent implements MouseMotionListener, MouseL
 		g2d.drawString("running: " + game.isRunning() + "     period: " + period, GameStatic.FRAME_BORDER, g2d.getFontMetrics().getHeight());
 		
 		g2d.translate((getWidth() - (GameStatic.CELL_WIDTH * GameStatic.WIDTH)) / 2, (getHeight() - (GameStatic.CELL_HEIGHT * GameStatic.HEIGHT)) / 2);
-		game.draw(g2d);
+		game.draw(g2d, drawGrid);
 
 	}
 
@@ -71,6 +74,25 @@ public class GamePanel extends JComponent implements MouseMotionListener, MouseL
 	private void startTimer() {
 		this.timer = new Timer();
 		timer.schedule(getTimerTask(), period, period);	
+	}
+	
+	public void setPeriod(int period) {
+		if(period == 0)
+			this.period = 50;
+		else if(period < 0)
+			this.period = 1;
+		else if(period > 200)
+			this.period = 200;
+		else
+			this.period = period;
+	}
+	
+	public void setDrawGrid(boolean drawGrid) {
+		this.drawGrid = drawGrid;
+	}
+	
+	public boolean isDrawGrid() {
+		return drawGrid;
 	}
 
 	@Override
@@ -97,6 +119,25 @@ public class GamePanel extends JComponent implements MouseMotionListener, MouseL
 			timer.cancel();
 			startTimer();
 		}
+		
+		if(e.isControlDown() && e.getKeyCode() == KeyEvent.VK_A) {
+			game.random(0);
+		}
+		
+		if(e.isControlDown() && e.getKeyCode() == KeyEvent.VK_G) {
+			this.drawGrid = !this.drawGrid;
+		}
+		
+		if(e.isControlDown() && e.getKeyCode() == KeyEvent.VK_S) {
+			GameSave.save(game, period, drawGrid);
+		}
+		
+		if(e.isControlDown() && e.getKeyCode() == KeyEvent.VK_O) {
+			GameLoadedState state = GameSave.load(game);
+			
+			setPeriod(state.getPeriod());
+			setDrawGrid(state.isDrawGrid());
+		}
 	}
 
 	@Override
@@ -110,8 +151,8 @@ public class GamePanel extends JComponent implements MouseMotionListener, MouseL
 		int nVal = period + e.getWheelRotation() * -5;
 		if(nVal <= 0) {
 			period = 1;
-		}else if(nVal > 100) {
-			period = 100;
+		}else if(nVal > 200) {
+			period = 200;
 		}else	
 			period = nVal;
 

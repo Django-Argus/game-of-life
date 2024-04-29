@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class Game {
 	
@@ -14,11 +15,7 @@ public class Game {
 	public Game() {
 		cells = new boolean[GameStatic.WIDTH][GameStatic.HEIGHT];
 		
-		for(int x = 0; x < GameStatic.WIDTH; x++) {
-			for(int y = 0; y < GameStatic.HEIGHT; y++) {
-				cells[x][y] = false;
-			}
-		}
+		clear();
 	}
 	
 	public void update() {
@@ -44,6 +41,12 @@ public class Game {
 		
 		for(GameUpdateState state : gameUpdateStates)
 			cells[state.x][state.y] = state.nValue;
+	}
+	
+	public void clear() {
+		for(int x = 0; x < GameStatic.WIDTH; x++)
+			for(int y = 0; y < GameStatic.HEIGHT; y++)
+				cells[x][y] = false;
 	}
 	
 	public int adj(int x, int y) {
@@ -78,7 +81,22 @@ public class Game {
 		cells[x][y] = !cells[x][y];
 	}
 	
-	public void draw(Graphics2D g) {
+	public void random(long seed) {
+		if(running)
+			return;
+		
+		Random rand;
+		if(seed == 0)
+			rand = new Random();
+		else
+			rand = new Random(seed);
+		
+		for(int x = 0; x < GameStatic.WIDTH; x++)
+			for(int y = 0; y < GameStatic.HEIGHT; y++)
+				cells[x][y] = rand.nextBoolean();
+	}
+	
+	public void draw(Graphics2D g, boolean drwGrid) {
 		int offX = 0;
 		int offY = 0;
 		for(int y = 0; y < GameStatic.HEIGHT; y++) {
@@ -89,6 +107,12 @@ public class Game {
 					g.setColor(Color.WHITE);					
 				
 				g.fillRect(0, 0, GameStatic.CELL_WIDTH, GameStatic.CELL_HEIGHT);
+				
+				if(drwGrid) {
+					g.setColor(Color.GRAY);
+					g.drawRect(0, 0, GameStatic.CELL_WIDTH, GameStatic.CELL_HEIGHT);
+				}
+				
 				g.translate(GameStatic.CELL_WIDTH, 0);
 				offX += GameStatic.CELL_WIDTH;
 			}
@@ -105,6 +129,10 @@ public class Game {
 	
 	public void playPause() {
 		running = !running;
+	}
+	
+	public boolean[][] getCells() {
+		return cells;
 	}
 	
 	class GameUpdateState {
