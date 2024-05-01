@@ -1,5 +1,6 @@
 package net.argus.game.gol;
 
+import java.awt.Point;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -7,35 +8,52 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.swing.JFileChooser;
 import javax.swing.SwingUtilities;
 
 public class GameSave {
 	
-	public static String generateSave(Game game, int period, boolean drawGrid) {
-		boolean[][] cells = game.getCells();
+	public static String generateSave(Game game, int period, double scale, int tx, int ty) {
+		game.getLock().lock();
 		
 		String save = "";
 		
-		save += "-2:" + (drawGrid?1:0) + "\n";
-		save += "-1:" + period + "\n";
+		save += "scale:" + scale + "\n";
+		save += "tx:" + tx + "\n";
+		save += "ty:" + ty + "\n";
+		save += "period:" + period + "\n";
 		
-		for(int x = 0; x < GameStatic.WIDTH; x++) {
-			String l = x + ":";
-			for(int y = 0; y < GameStatic.HEIGHT; y++)
-				if(cells[x][y])
-					l += y + ",";
-			if(l.equals(x + ":"))
-				continue;
-			save += l + "\n";
+		Map<Integer, List<Integer>> map = new HashMap<Integer, List<Integer>>();
+		
+		for(Point p : game.getCells().getCells()) {
+			if(!map.containsKey(p.x)) {
+				List<Integer> list = new ArrayList<Integer>();
+				list.add(p.y);
+				map.put(p.x, list);
+			}else {
+				List<Integer> list = map.get(p.x);
+				list.add(p.y);
+			}
+		}
+		
+		for(Entry<Integer, List<Integer>> entry : map.entrySet()) {
+			String l = entry.getKey() + ":";
+			for(Integer i : entry.getValue()) 
+				l += i + ",";
 			
+			save += l + "\n";
 		}
 		
 		return save;
 	}
 	
-	public static void save(Game game, int period, boolean drawGrid) {
+	public static void save(Game game, int period, double scale, int tx, int ty) {
 		SwingUtilities.invokeLater(() -> {
 			JFileChooser fc = new JFileChooser(new File("."));
 			int ret = fc.showSaveDialog(null);
@@ -50,7 +68,7 @@ public class GameSave {
 					fs = new FileOutputStream(file);
 					PrintWriter out = new PrintWriter(fs);
 					
-					out.write(generateSave(game, period, drawGrid));
+					out.write(generateSave(game, period, scale, tx, ty));
 					out.flush();
 					
 					out.close();
@@ -96,12 +114,22 @@ public class GameSave {
 				String b = line.substring(0, line.indexOf(':'));
 				String a = line.substring(line.indexOf(':') + 1);
 				
-				if(b.equals("-2")) {
-					state.setDrawGrid(Boolean.valueOf(a.equals("1")?"true":"false"));
+				if(b.equals("scale")) {
+					state.setScale(Double.valueOf(a));
 					continue;
 				}
 				
-				if(b.equals("-1")) {
+				if(b.equals("tx")) {
+					state.setTx(Integer.valueOf(a));
+					continue;
+				}
+				
+				if(b.equals("ty")) {
+					state.setTy(Integer.valueOf(a));
+					continue;
+				}
+				
+				if(b.equals("period")) {
 					state.setPeriod(Integer.valueOf(a));
 					continue;
 				}
@@ -109,7 +137,7 @@ public class GameSave {
 				for(String y : a.split(",")) {
 					if(y.isEmpty())
 						continue;
-					game.live(Integer.valueOf(b), Integer.valueOf(y));
+					game.add(Integer.valueOf(b), Integer.valueOf(y));
 					
 				}
 			}

@@ -2,27 +2,11 @@ package net.argus.game.gol;
 
 public class GameLoadedState {
 	
-	private int period = 0;
-	private boolean drawGrid = true;
+	private int period = 0, tx, ty;
+	
+	private double scale;
 	
 	public GameLoadedState() {}
-	
-	public GameLoadedState(boolean drawGrid) {
-		this.drawGrid = drawGrid;
-	}
-
-	public GameLoadedState(int period) {
-		this.period = period;
-	}
-	
-	public GameLoadedState(int period, boolean drawGrid) {
-		this.period = period;
-		this.drawGrid = drawGrid;
-	}
-	
-	public void setDrawGrid(boolean drawGrid) {
-		this.drawGrid = drawGrid;
-	}
 	
 	public void setPeriod(int period) {
 		this.period = period;
@@ -32,8 +16,27 @@ public class GameLoadedState {
 		return period;
 	}
 	
-	public boolean isDrawGrid() {
-		return drawGrid;
+	public double getScale() {
+		return scale;
 	}
-
+	
+	public int getTx() {
+		return tx;
+	}
+	
+	public int getTy() {
+		return ty;
+	}
+	
+	public void setScale(double scale) {
+		this.scale = scale;
+	}
+	
+	public void setTx(int tx) {
+		this.tx = tx;
+	}
+	
+	public void setTy(int ty) {
+		this.ty = ty;
+	}
 }

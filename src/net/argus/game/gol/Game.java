@@ -1,19 +1,23 @@
 package net.argus.game.gol;
 
-import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Game {
 	
-	private boolean[][] cells;
+	private Cells cells;
 	
 	private boolean running = false;
 	
+	private ReentrantLock lock = new ReentrantLock();
+	
 	public Game() {
-		cells = new boolean[GameStatic.WIDTH][GameStatic.HEIGHT];
+		cells = new Cells();
 		
 		clear();
 	}
@@ -23,104 +27,107 @@ public class Game {
 			return;
 		
 		List<GameUpdateState> gameUpdateStates = new ArrayList<Game.GameUpdateState>();
-		for(int x = 0; x < GameStatic.WIDTH; x++) {
-			for(int y = 0; y < GameStatic.HEIGHT; y++) {
-				int adj = adj(x, y);
-				if(cells[x][y])
-					if(adj < 2)
-						gameUpdateStates.add(new GameUpdateState(x, y, false));
-					else if(adj < 4)
-						gameUpdateStates.add(new GameUpdateState(x, y, true));
-					else
-						gameUpdateStates.add(new GameUpdateState(x, y, false));
-				else
-					if(adj == 3)
-						gameUpdateStates.add(new GameUpdateState(x, y, true));
-			}
+		
+		lock.lock();
+		for(Point point : cells.getCells()) {
+			GameUpdateState up = test(point, false);
+			gameUpdateStates.add(up);
+			
+			up = test(new Point(point.x-1, point.y-1), true);
+			gameUpdateStates.add(up);
+			up = test(new Point(point.x, point.y-1), true);
+			gameUpdateStates.add(up);
+			up = test(new Point(point.x+1, point.y-1), true);
+			gameUpdateStates.add(up);
+			up = test(new Point(point.x-1, point.y), true);
+			gameUpdateStates.add(up);
+			up = test(new Point(point.x+1, point.y), true);
+			gameUpdateStates.add(up);
+			up = test(new Point(point.x-1, point.y+1), true);
+			gameUpdateStates.add(up);
+			up = test(new Point(point.x, point.y+1), true);
+			gameUpdateStates.add(up);
+			up = test(new Point(point.x+1, point.y+1), true);
+			gameUpdateStates.add(up);
+			
 		}
 		
-		for(GameUpdateState state : gameUpdateStates)
-			cells[state.x][state.y] = state.nValue;
+		for(GameUpdateState state : gameUpdateStates) {
+			if(state == null)
+				continue;
+			if(state.nValue) 
+				cells.add(state.x, state.y);
+			else
+				cells.remove(state.x, state.y);	
+		}
+		lock.unlock();
+	}
+	
+	public GameUpdateState test(Point point, boolean strict) {
+		if(cells.isAlive(point.x, point.y) && !strict) {
+			int adj = cells.adj(point.x, point.y);
+			if(adj < 2)
+				return new GameUpdateState(point.x, point.y, false);
+			else if(adj < 4)
+				return null;
+			else
+				return new GameUpdateState(point.x, point.y, false);
+		}else if(strict && !cells.isAlive(point.x, point.y)) {
+			int adj = cells.adj(point.x, point.y);
+			if(adj == 3)
+				return new GameUpdateState(point.x, point.y, true);
+		}
+		
+		return null;
 	}
 	
 	public void clear() {
-		for(int x = 0; x < GameStatic.WIDTH; x++)
-			for(int y = 0; y < GameStatic.HEIGHT; y++)
-				cells[x][y] = false;
+		cells.clear();
 	}
 	
-	public int adj(int x, int y) {
-		int mX = Math.floorMod(x - 1, GameStatic.WIDTH);
-		int mY = Math.floorMod(y - 1, GameStatic.HEIGHT);
-
-		int pX = Math.floorMod(x + 1, GameStatic.WIDTH);
-		int pY = Math.floorMod(y + 1, GameStatic.HEIGHT);
-
-		int c = 0;
-		c += cells[mX][mY]?1:0;
-		c += cells[x][mY]?1:0;
-		c += cells[pX][mY]?1:0;
-		c += cells[mX][y]?1:0;
-		c += cells[pX][y]?1:0;
-		c += cells[mX][pY]?1:0;
-		c += cells[x][pY]?1:0;
-		c += cells[pX][pY]?1:0;
-		
-		return c;
+	public void clearLocal(Point origin, Dimension dim, boolean reversWidth, boolean reversHeight) {
+		for(int x = 0; x < dim.width; x++)
+			for(int y = 0; y < dim.height; y++)
+				cells.remove((x) * (reversWidth?-1:1) + origin.x, y * (reversHeight?-1:1) + origin.y);
 	}
 	
-	public void live(int x, int y) {
-		cells[x][y] = true;
+	public void fill(Point origin, Dimension dim, boolean reversWidth, boolean reversHeight) {
+		for(int x = 0; x < dim.width; x++)
+			for(int y = 0; y < dim.height; y++)
+				cells.add((x) * (reversWidth?-1:1) + origin.x, y * (reversHeight?-1:1) + origin.y);
+	}
+	
+	public void add(int x, int y) {
+		cells.add(x, y);
 	}
 
-	public void dead(int x, int y) {
-		cells[x][y] = false;
+	public void remove(int x, int y) {
+		cells.remove(x, y);
 	}
 	
-	public void place(int x, int y) {
-		cells[x][y] = !cells[x][y];
-	}
-	
-	public void random(long seed) {
+	public void random(long seed, Point origin, Dimension dim, boolean reversWidth, boolean reversHeight) {
 		if(running)
 			return;
-		
+
+		clearLocal(origin, dim, reversWidth, reversHeight);
 		Random rand;
 		if(seed == 0)
 			rand = new Random();
 		else
 			rand = new Random(seed);
 		
-		for(int x = 0; x < GameStatic.WIDTH; x++)
-			for(int y = 0; y < GameStatic.HEIGHT; y++)
-				cells[x][y] = rand.nextBoolean();
-	}
+		for(int x = 0; x < dim.width; x++)
+			for(int y = 0; y < dim.height; y++)
+				if(rand.nextBoolean())
+					cells.add((x) * (reversWidth?-1:1) + origin.x, y * (reversHeight?-1:1) + origin.y);
+	}	
 	
-	public void draw(Graphics2D g, boolean drwGrid) {
-		int offX = 0;
-		int offY = 0;
-		for(int y = 0; y < GameStatic.HEIGHT; y++) {
-			for(int x = 0; x < GameStatic.WIDTH; x++) {
-				if(cells[x][y])
-					g.setColor(Color.BLACK);
-				else
-					g.setColor(Color.WHITE);					
-				
-				g.fillRect(0, 0, GameStatic.CELL_WIDTH, GameStatic.CELL_HEIGHT);
-				
-				if(drwGrid) {
-					g.setColor(Color.GRAY);
-					g.drawRect(0, 0, GameStatic.CELL_WIDTH, GameStatic.CELL_HEIGHT);
-				}
-				
-				g.translate(GameStatic.CELL_WIDTH, 0);
-				offX += GameStatic.CELL_WIDTH;
-			}
-			g.translate(-GameStatic.CELL_WIDTH*GameStatic.WIDTH, GameStatic.CELL_HEIGHT);
-			offX -= GameStatic.CELL_WIDTH*GameStatic.WIDTH;
-			offY += GameStatic.CELL_HEIGHT;
-		}
-		g.translate(-offX, -offY);
+	public void draw(Graphics2D g) {
+		lock.lock();
+		for(Point point : cells.getCells())
+			g.fillRect(point.x * GameStatic.CELL_WIDTH, point.y * GameStatic.CELL_HEIGHT, GameStatic.CELL_WIDTH, GameStatic.CELL_HEIGHT);
+		
+		lock.unlock();
 	}
 	
 	public boolean isRunning() {
@@ -131,8 +138,12 @@ public class Game {
 		running = !running;
 	}
 	
-	public boolean[][] getCells() {
+	public Cells getCells() {
 		return cells;
+	}
+	
+	public ReentrantLock getLock() {
+		return lock;
 	}
 	
 	class GameUpdateState {
