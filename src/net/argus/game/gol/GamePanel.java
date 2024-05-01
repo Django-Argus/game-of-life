@@ -213,6 +213,10 @@ public class GamePanel extends JComponent implements MouseMotionListener, MouseL
 			this.scale = state.getScale();
 		}
 		
+		if(e.isControlDown() && e.isShiftDown() && e.getKeyCode() == KeyEvent.VK_DELETE) {
+			game.clear();
+		}
+		
 	}
 
 	@Override
